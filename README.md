@@ -1,0 +1,2 @@
+# SpecBoard
+AI Development Planner
