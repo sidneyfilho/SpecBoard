@@ -8,6 +8,7 @@ export interface GitInfo {
   ahead?: number
   behind?: number
   reason?: string
+  gitRoot?: string
 }
 
 export class ApiError extends Error {
@@ -45,9 +46,10 @@ export interface OpenResult {
 export const repositoryApi = {
   info: () => call<{ exampleRoot: string | null; current: string | null }>('/info'),
   pickFolder: () => call<{ path: string | null }>('/pick-folder'),
-  open: (root: string) => call<OpenResult>('/open', { root }),
-  reload: () => call<OpenResult>('/reload'),
-  check: (paths: string[]) => call<{ hashes: Record<string, string | null>; git: GitInfo }>('/check', { paths }),
+  open: (root: string, gitRoot?: string) => call<OpenResult>('/open', { root, gitRoot }),
+  reload: (gitRoot?: string) => call<OpenResult>('/reload', { gitRoot }),
+  check: (paths: string[], gitRoot?: string) => call<{ hashes: Record<string, string | null>; git: GitInfo }>('/check', { paths, gitRoot }),
+  getGitInfo: (gitRoot?: string) => call<{ git: GitInfo }>('/git', { gitRoot }),
   write: (path: string, content: string, expectedHash: string | null, force = false) =>
     call<{ file: { content: string; hash: string } }>('/write', { path, content, expectedHash, force }),
 }

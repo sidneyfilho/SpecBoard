@@ -225,15 +225,24 @@ export interface GitInfo {
   ahead?: number
   behind?: number
   reason?: string
+  gitRoot?: string
 }
 
 export async function gitInfo(root: string): Promise<GitInfo> {
+  if (!root) return { available: false, reason: 'Nenhum caminho especificado.' }
+  try {
+    const st = await fs.stat(root)
+    if (!st.isDirectory()) return { available: false, reason: 'O caminho do Git não é um diretório.' }
+  } catch {
+    return { available: false, reason: 'Diretório do Git não encontrado ou inacessível.' }
+  }
+
   const branch = await git(root, ['rev-parse', '--abbrev-ref', 'HEAD'])
   if (branch === null) {
     if ((await git(root, ['--version'])) === null) return { available: false, reason: 'Executável git não encontrado no PATH do servidor.' }
     const inside = await git(root, ['rev-parse', '--is-inside-work-tree'])
     return inside === 'true'
-      ? { available: true, branch: '(sem commits)', changed: [], dirty: false }
+      ? { available: true, branch: '(sem commits)', changed: [], dirty: false, gitRoot: root }
       : { available: false, reason: 'A pasta não está dentro de um repositório Git.' }
   }
   const status = (await git(root, ['status', '--porcelain', '--', '.'])) ?? ''
@@ -242,5 +251,5 @@ export async function gitInfo(root: string): Promise<GitInfo> {
   let behind: number | undefined
   let ahead: number | undefined
   if (counts) [behind, ahead] = counts.split(/\s+/).map(Number)
-  return { available: true, branch, dirty: changed.length > 0, changed, ahead, behind }
+  return { available: true, branch, dirty: changed.length > 0, changed, ahead, behind, gitRoot: root }
 }

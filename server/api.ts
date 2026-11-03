@@ -66,18 +66,27 @@ export function specboardApi(): Plugin {
               send(res, 200, { path: selected })
               return
             }
+            if (url === '/git') {
+              const gitTarget = body.gitRoot ? String(body.gitRoot) : root
+              if (!gitTarget) throw new RepoError('Nenhum repositório ou pasta Git informada.', 400)
+              send(res, 200, { git: await gitInfo(gitTarget) })
+              return
+            }
             if (url === '/open') {
               const next = await validateRoot(String(body.root ?? ''))
               root = next
-              send(res, 200, { root, files: await loadProjectFiles(root), git: await gitInfo(root) })
+              const gitTarget = body.gitRoot ? String(body.gitRoot) : root
+              send(res, 200, { root, files: await loadProjectFiles(root), git: await gitInfo(gitTarget) })
               return
             }
             if (!root) throw new RepoError('Nenhum repositório selecionado.', 400)
             if (url === '/reload') {
-              send(res, 200, { root, files: await loadProjectFiles(root), git: await gitInfo(root) })
+              const gitTarget = body.gitRoot ? String(body.gitRoot) : root
+              send(res, 200, { root, files: await loadProjectFiles(root), git: await gitInfo(gitTarget) })
             } else if (url === '/check') {
               const paths = Array.isArray(body.paths) ? body.paths.filter((p): p is string => typeof p === 'string') : []
-              send(res, 200, { hashes: await hashesOf(root, paths), git: await gitInfo(root) })
+              const gitTarget = body.gitRoot ? String(body.gitRoot) : root
+              send(res, 200, { hashes: await hashesOf(root, paths), git: await gitInfo(gitTarget) })
             } else if (url === '/write') {
               const expected = body.expectedHash === null ? null : String(body.expectedHash)
               const entry = await safeWrite(root, String(body.path ?? ''), String(body.content ?? ''), expected, body.force === true)

@@ -1,8 +1,8 @@
-﻿import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { RepoError, loadProjectFiles, resolveInside, safeWrite, sha256, validateRoot } from '../server/repository'
+import { RepoError, gitInfo, loadProjectFiles, resolveInside, safeWrite, sha256, validateRoot } from '../server/repository'
 
 let root: string
 beforeAll(async () => {
@@ -49,5 +49,16 @@ describe('repositório seguro', () => {
     await safeWrite(root, 'specs/002/spec.md', 'x', null)
     await expect(safeWrite(root, 'specs/002/spec.md', 'y', null)).rejects.toThrow(RepoError)
     await expect(safeWrite(root, 'specs/run.sh', 'rm -rf', null)).rejects.toThrow(RepoError)
+  })
+
+  it('lida com gitInfo para diretórios válidos e inexistentes', async () => {
+    const invalid = await gitInfo(path.join(root, 'nao-existe'))
+    expect(invalid.available).toBe(false)
+    expect(invalid.reason).toContain('não encontrado')
+
+    const current = await gitInfo(process.cwd())
+    expect(current.available).toBe(true)
+    expect(current.gitRoot).toBe(process.cwd())
+    expect(current.branch).toBeDefined()
   })
 })

@@ -60,6 +60,7 @@ O **SpecBoard** resolve isso oferecendo uma camada visual moderna de alto nível
 ### 🗂️ 1. Multi-Projetos & Alternância Instantânea
 - **Troca Rápida de Projetos:** Alterne entre múltiplos repositórios com um clique pelo menu suspenso lateral.
 - **Seletor Nativo do Windows:** Abre a janela padrão do Windows Explorer para navegar e selecionar a pasta do projeto graficamente.
+- **Pasta Git Personalizada por Projeto:** Suporta monorepos e estruturas onde os documentos de planejamento ficam em subpastas (ex: `doc-alvorland/pm-md`) e o repositório `.git` fica na pasta-mãe. Ajuste e teste a pasta Git diretamente na tela de **Configurações**.
 - **Histórico Persistente:** Seus projetos recentes e o último repositório aberto são lembrados automaticamente via `localStorage`.
 
 ### 📋 2. Kanban de Tarefas & Especificações

@@ -11,6 +11,7 @@ import { buildDemoModel } from '@/infrastructure/demo'
 
 const LAST_ROOT_KEY = 'specboard.lastRoot'
 const RECENT_PROJECTS_KEY = 'specboard.recentProjects'
+const PROJECT_GIT_ROOTS_KEY = 'specboard.projectGitRoots'
 
 export interface RecentProject {
   id: string
@@ -63,6 +64,20 @@ export const useProjectStore = defineStore('project', () => {
     recentProjects.value = []
   }
 
+  const customGitRoots = ref<Record<string, string>>({})
+  try {
+    const savedRoots = localStorage.getItem(PROJECT_GIT_ROOTS_KEY)
+    if (savedRoots) customGitRoots.value = JSON.parse(savedRoots)
+  } catch {
+    customGitRoots.value = {}
+  }
+
+  const currentGitRoot = computed(() => {
+    const id = model.value.project.id
+    const root = model.value.project.repositoryRoot
+    return customGitRoots.value[id] || customGitRoots.value[root] || root
+  })
+
   function saveRecentProject(root: string, id: string, name: string, description?: string) {
     const filtered = recentProjects.value.filter((p) => p.root !== root)
     recentProjects.value = [
@@ -92,12 +107,22 @@ export const useProjectStore = defineStore('project', () => {
     externalChanges.value = []
   }
 
-  async function open(root: string) {
+  async function open(root: string, customGitRoot?: string) {
     loading.value = true
     error.value = null
     try {
-      const r = await repositoryApi.open(root)
+      const initialGitRoot = customGitRoot ?? customGitRoots.value[root]
+      const r = await repositoryApi.open(root, initialGitRoot)
       applyFiles(r.files, r.root)
+      const effectiveGitRoot = customGitRoots.value[model.value.project.id] || customGitRoots.value[r.root]
+      if (effectiveGitRoot && effectiveGitRoot !== r.git.gitRoot) {
+        try {
+          const res = await repositoryApi.getGitInfo(effectiveGitRoot)
+          r.git = res.git
+        } catch {
+          // Mantém git original em caso de erro na pasta configurada
+        }
+      }
       git.value = r.git
       // Guarda apenas o caminho (preferência de UI); as tarefas continuam vindo dos arquivos.
       localStorage.setItem(LAST_ROOT_KEY, r.root)
@@ -127,7 +152,7 @@ export const useProjectStore = defineStore('project', () => {
     if (isDemo.value) return
     loading.value = true
     try {
-      const r = await repositoryApi.reload()
+      const r = await repositoryApi.reload(currentGitRoot.value)
       applyFiles(r.files, r.root)
       git.value = r.git
       conflict.value = null
@@ -151,7 +176,7 @@ export const useProjectStore = defineStore('project', () => {
     if (isDemo.value || conflict.value) return
     const files = model.value.files
     try {
-      const r = await repositoryApi.check(Object.keys(files))
+      const r = await repositoryApi.check(Object.keys(files), currentGitRoot.value)
       git.value = r.git
       externalChanges.value = Object.entries(r.hashes)
         .filter(([p, h]) => h !== files[p]?.hash)
@@ -159,6 +184,37 @@ export const useProjectStore = defineStore('project', () => {
     } catch {
       /* servidor indisponível: sem verificação */
     }
+  }
+
+  async function refreshGit(targetPath?: string) {
+    if (isDemo.value) return git.value
+    const gitPath = targetPath ?? currentGitRoot.value
+    try {
+      const res = await repositoryApi.getGitInfo(gitPath)
+      git.value = res.git
+      return res.git
+    } catch (e) {
+      git.value = { available: false, reason: (e as Error).message }
+      return git.value
+    }
+  }
+
+  async function setProjectGitRoot(path: string | null) {
+    const id = model.value.project.id
+    const root = model.value.project.repositoryRoot
+    const updated = { ...customGitRoots.value }
+    const trimmed = path?.trim() || ''
+
+    if (!trimmed || trimmed === root) {
+      delete updated[id]
+      delete updated[root]
+    } else {
+      updated[id] = trimmed
+      if (root) updated[root] = trimmed
+    }
+    customGitRoots.value = updated
+    localStorage.setItem(PROJECT_GIT_ROOTS_KEY, JSON.stringify(updated))
+    return refreshGit()
   }
 
   /** Grava um documento com verificação de conflito. Retorna true se gravou. */
@@ -281,7 +337,7 @@ export const useProjectStore = defineStore('project', () => {
 
   return {
     model, loading, error, git, conflict, externalChanges, notice, isDemo, metrics, analysis, parallel, taskById,
-    recentProjects, removeRecentProject,
+    recentProjects, removeRecentProject, customGitRoots, currentGitRoot, setProjectGitRoot, refreshGit,
     open, restore, reload, loadDemo, checkExternal, writeDoc, resolveOverwrite, resolveReapply, resolveDiscard,
     setTaskStatus, saveTask, createTask, setSpecStatus, saveDocument, createSpec, say,
   }
