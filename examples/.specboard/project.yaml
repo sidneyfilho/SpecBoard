@@ -1,0 +1,6 @@
+id: alvorland
+name: Alvorland
+description: Jogo 2D com Godot e backend Java
+specs_directory: specs
+constitution_path: .specboard/constitution.md
+agent_instructions_path: AGENTS.md
